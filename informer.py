@@ -2,22 +2,25 @@ import logging
 import requests
 import schedule
 import time
+import configparser
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
 
+config = configparser.ConfigParser()  # создаём объекта парсера
+config.read("settings.ini")  # читаем конфиг
+token = config['Telegramm']['token']
+channel_id = config['Telegramm']['channel_id']
+work_dir = config['Telegramm']['work_dir']
 
-WORK_DIR = '/home/sysadmin/match_informer/match_informer/'
-
-logging.basicConfig(filename=WORK_DIR + 'info.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
+logging.basicConfig(filename=work_dir + 'info.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 
 
-def send_message(link):
-    token = "5098599229:AAHqtLpW4-0v9-XTNJZiOLQ6lGyNnI6xDsE"
+def send_message(link, token, channel_id):
     url = "https://api.telegram.org/bot"
     #channel_id = "-450216618"
-    channel_id = '-638259980'
+    #channel_id = '-638259980'
     url += token
     method = url + "/sendMessage"
 
@@ -37,7 +40,7 @@ def send_message(link):
 
 
 
-def job():
+def job(token, channel_id):
     
     response = requests.get("https://www.makeready.ru/", headers={'User-Agent': UserAgent().random})
     if response.status_code == 200:
@@ -52,21 +55,21 @@ def job():
 
     base_list = []
 
-    with open(WORK_DIR + 'links.txt', 'r', encoding='utf-8') as f:
+    with open(work_dir + 'links.txt', 'r', encoding='utf-8') as f:
         for line in f:
             base_list.append(line.rstrip())
         for match in shotgun_matches:
             link =  match.find('a')['href']
             if not link in base_list:
-                send_message(link)
+                send_message(link, token, channel_id)
         f.close()
 
-    with open(WORK_DIR + 'links.txt', 'w', encoding='utf-8') as f:
+    with open(work_dir + 'links.txt', 'w', encoding='utf-8') as f:
         for match in shotgun_matches:
             f.write(match.find('a')['href']+'\n')
         f.close()
 
-schedule.every(1).minutes.do(job)
+schedule.every(60).minutes.do(job, token=token, channel_id=channel_id)
 
 while True:
     schedule.run_pending()
