@@ -12,6 +12,7 @@ config.read("settings.ini")  # читаем конфиг
 token = config['Telegramm']['token']
 channel_id = config['Telegramm']['channel_id']
 work_dir = config['Telegramm']['work_dir']
+ping = int(config['Telegramm']['ping'])
 
 logging.basicConfig(filename=work_dir + 'info.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
@@ -53,23 +54,24 @@ def job(token, channel_id):
             if t[1] == 'shotgun' and t[2] == 'ru':
                 shotgun_matches.append(each)
 
-    base_list = []
+        base_list = []
 
-    with open(work_dir + 'links.txt', 'r', encoding='utf-8') as f:
-        for line in f:
-            base_list.append(line.rstrip())
-        for match in shotgun_matches:
-            link =  match.find('a')['href']
-            if not link in base_list:
-                send_message(link, token, channel_id)
-        f.close()
+        with open(work_dir + 'links.txt', 'r', encoding='utf-8') as f:
+            for line in f:
+                base_list.append(line.rstrip())
+            for match in shotgun_matches:
+                link =  match.find('a')['href']
+                if not link in base_list:
+                    send_message(link, token, channel_id)
+            f.close()
 
-    with open(work_dir + 'links.txt', 'w', encoding='utf-8') as f:
-        for match in shotgun_matches:
-            f.write(match.find('a')['href']+'\n')
-        f.close()
+        with open(work_dir + 'links.txt', 'w', encoding='utf-8') as f:
+            for match in shotgun_matches:
+                f.write(match.find('a')['href']+'\n')
+            f.close()
 
-schedule.every(60).minutes.do(job, token=token, channel_id=channel_id)
+logging.warning(ping)
+schedule.every(ping).minutes.do(job, token=token, channel_id=channel_id)
 
 while True:
     schedule.run_pending()
