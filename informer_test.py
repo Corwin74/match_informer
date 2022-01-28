@@ -26,7 +26,6 @@ logging.basicConfig(filename=work_dir + 'info.log', level=logging.DEBUG, format=
 def check_briefing(link: str):
 
     try:
-        print('Check briefing', link)
         response = requests.get(BASE_LINK + link, headers={'User-Agent': agent})
         if response.status_code == 200:
             bs = BeautifulSoup(response.text, 'lxml')
@@ -37,19 +36,17 @@ def check_briefing(link: str):
         else:
             return None
     except Exception as e:
-        logging.warning('Exception:', e)
+        logging.error(e, exc_info=True)
 
 
 
 def send_message(text: str):
     
-    print(method)
     for i in range(3):
         r = requests.post(method, data={
             "chat_id": channel_id,
             "text": text,
             })
-
         if r.status_code == 200:
             break
         time.sleep(5)
