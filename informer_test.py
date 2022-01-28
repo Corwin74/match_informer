@@ -1,26 +1,24 @@
 import logging
-from xmlrpc.client import Boolean
 import requests
 import schedule
 import time
 import configparser
 from bs4 import BeautifulSoup
-from fake_useragent import UserAgent, FakeUserAgentError
 import os
+import shelve
 
-config = configparser.ConfigParser()  # создаём объекта парсера
-config.read("/home/alex/projects/match_informer/settings_test.ini")  # читаем конфиг
+BASE_LINK = "https://www.makeready.ru"
+
+work_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
+agent = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:21.0) Gecko/20100101 Firefox/21.0'
+
+config = configparser.ConfigParser()  
+config.read(work_dir + 'settings_test.ini')  
 channel_id = config['Telegramm']['channel_id']
 token =  config['Telegramm']['token']
 ping = int(config['Telegramm']['ping'])
 
-try:
-    ua = UserAgent(fallback='Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:21.0) Gecko/20100101 Firefox/21.0')
-    agent = ua.random
-except FakeUserAgentError:
-    print('Bebe1')
-
-work_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
+method = 'https://api.telegram.org/bot'+ token + '/sendMessage'
 
 logging.basicConfig(filename=work_dir + 'info.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
@@ -28,18 +26,24 @@ logging.basicConfig(filename=work_dir + 'info.log', level=logging.DEBUG, format=
 def check_briefing(link: str):
 
     try:
-        response = requests.get(link, headers={'User-Agent': agent})
+        print('Check briefing', link)
+        response = requests.get(BASE_LINK + link, headers={'User-Agent': agent})
         if response.status_code == 200:
             bs = BeautifulSoup(response.text, 'lxml')
-        return bs.find('a', string='Брифинги')
-    except:
-        return False
+            x = bs.find('a', string='Брифинги')
+            if not x == None:
+                x = x['href']
+            return x
+        else:
+            return None
+    except Exception as e:
+        logging.warning('Exception:', e)
+
+
 
 def send_message(text: str):
-    url = "https://api.telegram.org/bot"
-    url += token
-    method = url + "/sendMessage"
-
+    
+    print(method)
     for i in range(3):
         r = requests.post(method, data={
             "chat_id": channel_id,
@@ -48,16 +52,15 @@ def send_message(text: str):
 
         if r.status_code == 200:
             break
-        time.sleep(60)
+        time.sleep(5)
     else:
         logging.warning('Post error:', r.status_code)
     
     return r.status_code
 
-
-def job():
+def get_matches_list():
     
-    response = requests.get("https://www.makeready.ru/", headers={'User-Agent': UserAgent().random})
+    response = requests.get(BASE_LINK, headers={'User-Agent': agent})
     if response.status_code == 200:
         bs = BeautifulSoup(response.text, 'lxml')
         scheduler = bs.find('table', class_='bordered scheduleTable')
@@ -67,29 +70,32 @@ def job():
             t = each['tags'].split(',')
             if t[1] == 'shotgun' and t[2] == 'ru':
                 shotgun_matches.append(each)
+        return shotgun_matches
+    return None
 
-    base_list = []
+def main_job():
+    
+    shotgun_matches = get_matches_list()
 
-    with open(work_dir + 'links.txt', 'r', encoding='utf-8') as f:
-        for line in f:
-            base_list.append(line.rstrip())
+    if shotgun_matches == None:
+        return
+
+    with shelve.open(work_dir + 'base_test.db', flag='c') as matches_dict:
         for match in shotgun_matches:
             link =  match.find('a')['href']
-            if not link in base_list:
-                send_message('На Makeready был добавлен новый ружейный матч:' + '\n' + 'https://makeready.ru' + link)
-            x = check_briefing(link)
-            if x == None or x == False:
-                pass
-            else:
-                send_message('Брифинг мазафака!')
-        f.close()
+            if not link in matches_dict.keys():
+                send_message('На Makeready был добавлен новый ружейный матч:' + '\n' + BASE_LINK + link)
+                matches_dict[link] = -1
+            if matches_dict[link] == -1:
+                brief_link = check_briefing(link)
+                if not brief_link == None:
+                    matches_dict[link] = brief_link
+                    send_message('Для матча ' + 
+                        BASE_LINK + link + '\n' + 'появился брифинг: ' + '\n' + BASE_LINK + brief_link)
+        matches_dict.close()
 
-    with open(work_dir + 'links.txt', 'w', encoding='utf-8') as f:
-        for match in shotgun_matches:
-            f.write(match.find('a')['href']+'\n')
-        f.close()
+schedule.every(ping).minutes.do(main_job)
 
-schedule.every(ping).minutes.do(job)
 
 while True:
     schedule.run_pending()
