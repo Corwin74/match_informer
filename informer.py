@@ -50,8 +50,8 @@ def job(token, channel_id):
         list_matches = scheduler.find_all('tr')
         shotgun_matches = []
         for each in list_matches[:-1]:
-            t = each['tags'].split(',')
-            if t[1] == 'shotgun' and t[2] == 'ru':
+            tags = each['tags'].split(',')
+            if tags[1] == 'shotgun' and tags[2] == 'ru':
                 shotgun_matches.append(each)
 
         base_list = []
