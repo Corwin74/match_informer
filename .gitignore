@@ -1,6 +1,11 @@
 # secret settings
 settings.ini
 
+#link database
+
+base_test.db.*
+base.db.*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
