@@ -4,8 +4,7 @@ settings_test.ini
 
 #link database
 
-base_test.db.*
-base.db.*
+*.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

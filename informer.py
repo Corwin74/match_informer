@@ -63,11 +63,12 @@ def get_matches_list():
         scheduler = bsoup.find('table', class_='bordered scheduleTable')
         list_matches = scheduler.find_all('tr')
         shotgun_matches = []
-        for each in list_matches[:-1]:
-            tags = each['tags'].split(',')
-            if tags[1] == 'shotgun' and tags[2] == 'ru':
-                shotgun_matches.append(each)
-        return shotgun_matches
+        if len(list_matches) > 1:
+            for each in list_matches[:-1]:
+                tags = each['tags'].split(',')
+                if tags[1] == 'shotgun' and tags[2] == 'ru':
+                    shotgun_matches.append(each)
+            return shotgun_matches
     return None
 
 def main_job():
